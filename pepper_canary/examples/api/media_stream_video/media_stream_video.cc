@@ -15,6 +15,7 @@
 #include "ppapi/cpp/var.h"
 #include "ppapi/cpp/video_frame.h"
 #include "ppapi/utility/completion_callback_factory.h"
+#include "ccv_glue.h"
 
 // When compiling natively on Windows, PostMessage can be #define-d to
 // something else.
@@ -28,6 +29,8 @@
   PP_DCHECK(!gles2_if_->GetError(context_->pp_resource()));
 
 namespace {
+
+ccv_glue::CCVGule ccvGlue;
 
 // This object is the global object representing this plugin library as long
 // as it is loaded.
@@ -339,6 +342,9 @@ void MediaStreamVideoDemoInstance::OnGetFrame(
     int32_t result, pp::VideoFrame frame) {
   if (result != PP_OK)
     return;
+
+  this->PostMessage(ccvGlue.DoFaceDetection(frame));
+
   const char* data = static_cast<const char*>(frame.GetDataBuffer());
   pp::Size size;
   PP_DCHECK(frame.GetSize(&size));

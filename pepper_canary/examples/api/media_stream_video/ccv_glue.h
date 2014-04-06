@@ -6,6 +6,6 @@ namespace ccv_glue {
     class CCVGule {
     public:
         CCVGule();
-        pp::VarDictionary DoFaceDetection(const pp::VideoFrame& frame);
+        pp::VarDictionary DoFaceDetection(pp::VideoFrame& frame);
     };
 }
