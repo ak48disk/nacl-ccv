@@ -16,9 +16,9 @@ ccv_bbf_classifier_cascade_t* face_cascade = ccv_bbf_read_classifier_cascade();
 
 namespace ccv_glue {
 
-CCVGule::CCVGule() { }
+FaceDetector::FaceDetector() { }
 
-pp::VarDictionary CCVGule::DoFaceDetection(pp::VideoFrame& frame) {
+pp::VarDictionary FaceDetector::DoFaceDetection(pp::VideoFrame& frame) {
     const void* data = static_cast<const void*>(frame.GetDataBuffer());
     uint32_t buffer_size = frame.GetDataBufferSize();
     pp::Size size;
@@ -29,7 +29,8 @@ pp::VarDictionary CCVGule::DoFaceDetection(pp::VideoFrame& frame) {
     int32_t width = size.width();
     int32_t height = size.height();
     ccv_dense_matrix_t* image = 0;
-    ccv_read(data, &image, CCV_IO_RGBA_RAW, height, width, buffer_size / width);
+    ccv_read(data, &image, CCV_IO_BGRA_RAW | CCV_IO_GRAY, height, width,  buffer_size / height);
+    //printf("%d %d %d\n",width,height,buffer_size);
     PP_DCHECK(image != 0);
 
     ccv_array_t* faces = ccv_bbf_detect_objects(image, &face_cascade, 1, ccv_bbf_default_params);
@@ -40,9 +41,9 @@ pp::VarDictionary CCVGule::DoFaceDetection(pp::VideoFrame& frame) {
         ccv_comp_t* face = (ccv_comp_t*)ccv_array_get(faces, i);
         pp::VarDictionary ppFace;
         ppFace.Set(pp::Var("x"), face->rect.x);
-	ppFace.Set(pp::Var("y"), face->rect.y);
-	ppFace.Set(pp::Var("width"), face->rect.width);
-	ppFace.Set(pp::Var("height"), face->rect.height);
+	    ppFace.Set(pp::Var("y"), face->rect.y);
+	    ppFace.Set(pp::Var("width"), face->rect.width);
+	    ppFace.Set(pp::Var("height"), face->rect.height);
         ppFaces.Set(i, ppFace);
     }    
 

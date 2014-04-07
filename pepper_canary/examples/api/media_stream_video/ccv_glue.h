@@ -3,9 +3,9 @@ class VarDictionary;
 class VideoFrame;
 }
 namespace ccv_glue {
-    class CCVGule {
+    class FaceDetector {
     public:
-        CCVGule();
+        FaceDetector();
         pp::VarDictionary DoFaceDetection(pp::VideoFrame& frame);
     };
 }

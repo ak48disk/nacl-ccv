@@ -19,6 +19,9 @@ found in the LICENSE file.
   a webcam.</p>
   <!-- The NaCl plugin will be embedded inside the element with id "listener".
       See common.js.-->
-  <div id="listener"></div>
+  <div id="listener" style="position:relative">
+    <canvas style="z-index:100;position:absolute;top:0px;left:0px" width=640 height=480 id="canvas"> </canvas>
+  </div>
+  
 </body>
 </html>

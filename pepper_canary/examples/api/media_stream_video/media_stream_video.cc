@@ -30,7 +30,7 @@
 
 namespace {
 
-ccv_glue::CCVGule ccvGlue;
+ccv_glue::FaceDetector faceDetector;
 
 // This object is the global object representing this plugin library as long
 // as it is loaded.
@@ -73,6 +73,7 @@ class MediaStreamVideoDemoInstance : public pp::Instance,
 
   // Callback that is invoked when new frames are recevied.
   void OnGetFrame(int32_t result, pp::VideoFrame frame);
+  void OnConfigure(int32_t result);
 
   pp::Size position_size_;
   bool is_painting_;
@@ -137,9 +138,18 @@ void MediaStreamVideoDemoInstance::HandleMessage(const pp::Var& var_message) {
   pp::Resource resource_track = var_track.AsResource();
 
   video_track_ = pp::MediaStreamVideoTrack(resource_track);
+  
+  int32_t attribs[] = {
+     PP_MEDIASTREAMVIDEOTRACK_ATTRIB_FORMAT, PP_VIDEOFRAME_FORMAT_BGRA ,
+     PP_MEDIASTREAMVIDEOTRACK_ATTRIB_NONE
+  };
+  video_track_.Configure(attribs, callback_factory_.NewCallback(&MediaStreamVideoDemoInstance::OnConfigure));
 
+}
+
+void MediaStreamVideoDemoInstance::OnConfigure(int32_t result)  {
   video_track_.GetFrame(callback_factory_.NewCallbackWithOutput(
-        &MediaStreamVideoDemoInstance::OnGetFrame));
+        &MediaStreamVideoDemoInstance::OnGetFrame));  
 }
 
 void MediaStreamVideoDemoInstance::InitGL() {
@@ -218,8 +228,8 @@ GLuint MediaStreamVideoDemoInstance::CreateTexture(
 
   // Allocate texture.
   gles2_if_->TexImage2D(
-      context_->pp_resource(), GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
-      GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+      context_->pp_resource(), GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+      GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   AssertNoGLError();
   return texture_id;
 }
@@ -240,24 +250,13 @@ void MediaStreamVideoDemoInstance::CreateGLObjects() {
       "precision mediump float;                                   \n"
       "varying vec2 v_texCoord;                                   \n"
       "uniform sampler2D y_texture;                               \n"
-      "uniform sampler2D u_texture;                               \n"
-      "uniform sampler2D v_texture;                               \n"
-      "uniform mat3 color_matrix;                                 \n"
       "void main()                                                \n"
       "{                                                          \n"
       "  vec3 yuv;                                                \n"
-      "  yuv.x = texture2D(y_texture, v_texCoord).r;              \n"
-      "  yuv.y = texture2D(u_texture, v_texCoord).r;              \n"
-      "  yuv.z = texture2D(v_texture, v_texCoord).r;              \n"
-      "  vec3 rgb = color_matrix * (yuv - vec3(0.0625, 0.5, 0.5));\n"
-      "  gl_FragColor = vec4(rgb, 1.0);                           \n"
+      "  yuv = texture2D(y_texture, v_texCoord).bgr;              \n"
+      "  gl_FragColor = vec4(yuv,1.0);                           \n"
       "}";
 
-  static const float kColorMatrix[9] = {
-    1.1643828125f, 1.1643828125f, 1.1643828125f,
-    0.0f, -0.39176171875f, 2.017234375f,
-    1.59602734375f, -0.81296875f, 0.0f
-  };
 
   PP_Resource context = context_->pp_resource();
 
@@ -271,14 +270,8 @@ void MediaStreamVideoDemoInstance::CreateGLObjects() {
   gles2_if_->DeleteProgram(context, program);
   gles2_if_->Uniform1i(
       context, gles2_if_->GetUniformLocation(context, program, "y_texture"), 0);
-  gles2_if_->Uniform1i(
-      context, gles2_if_->GetUniformLocation(context, program, "u_texture"), 1);
-  gles2_if_->Uniform1i(
-      context, gles2_if_->GetUniformLocation(context, program, "v_texture"), 2);
-  gles2_if_->UniformMatrix3fv(
-      context,
-      gles2_if_->GetUniformLocation(context, program, "color_matrix"),
-      1, GL_FALSE, kColorMatrix);
+ 
+
   AssertNoGLError();
 
   // Assign vertex positions and texture coordinates to buffers for use in
@@ -326,16 +319,9 @@ void MediaStreamVideoDemoInstance::CreateYUVTextures() {
     return;
   if (texture_y_)
     gles2_if_->DeleteTextures(context_->pp_resource(), 1, &texture_y_);
-  if (texture_u_)
-    gles2_if_->DeleteTextures(context_->pp_resource(), 1, &texture_u_);
-  if (texture_v_)
-    gles2_if_->DeleteTextures(context_->pp_resource(), 1, &texture_v_);
+
   texture_y_ = CreateTexture(width, height, 0);
 
-  width /= 2;
-  height /= 2;
-  texture_u_ = CreateTexture(width, height, 1);
-  texture_v_ = CreateTexture(width, height, 2);
 }
 
 void MediaStreamVideoDemoInstance::OnGetFrame(
@@ -343,7 +329,7 @@ void MediaStreamVideoDemoInstance::OnGetFrame(
   if (result != PP_OK)
     return;
 
-  this->PostMessage(ccvGlue.DoFaceDetection(frame));
+  this->PostMessage(faceDetector.DoFaceDetection(frame));
 
   const char* data = static_cast<const char*>(frame.GetDataBuffer());
   pp::Size size;
@@ -358,22 +344,7 @@ void MediaStreamVideoDemoInstance::OnGetFrame(
   gles2_if_->ActiveTexture(context_->pp_resource(), GL_TEXTURE0);
   gles2_if_->TexSubImage2D(
       context_->pp_resource(), GL_TEXTURE_2D, 0, 0, 0, width, height,
-      GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
-
-  data += width * height;
-  width /= 2;
-  height /= 2;
-
-  gles2_if_->ActiveTexture(context_->pp_resource(), GL_TEXTURE1);
-  gles2_if_->TexSubImage2D(
-      context_->pp_resource(), GL_TEXTURE_2D, 0, 0, 0, width, height,
-      GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
-
-  data += width * height;
-  gles2_if_->ActiveTexture(context_->pp_resource(), GL_TEXTURE2);
-  gles2_if_->TexSubImage2D(
-      context_->pp_resource(), GL_TEXTURE_2D, 0, 0, 0, width, height,
-      GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+      GL_RGBA, GL_UNSIGNED_BYTE, data);
 
   if (is_painting_)
     needs_paint_ = true;

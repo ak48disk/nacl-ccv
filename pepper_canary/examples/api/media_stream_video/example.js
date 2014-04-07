@@ -16,3 +16,22 @@ function failure(e) {
 function moduleDidLoad() {
   navigator.webkitGetUserMedia({'video': true}, success, failure);
 }
+
+function handleMessage(message_event) {
+	var msg = message_event.data;
+	var context = document.getElementById("canvas").getContext("2d");
+	if (msg.faces.length != 0) {
+		console.log(msg.faces);
+		context.clearRect(0,0,640,480);
+		for(var i=0;i<msg.faces.length;++i) {
+			var face = msg.faces[i];
+			context.beginPath();
+			context.moveTo(face.x,face.y);
+			context.lineTo(face.x,face.y+face.height);
+			context.lineTo(face.x+face.width,face.y+face.height);
+			context.lineTo(face.x+face.width,face.y);
+			context.lineTo(face.x,face.y);
+			context.stroke();
+		}
+	}
+}
