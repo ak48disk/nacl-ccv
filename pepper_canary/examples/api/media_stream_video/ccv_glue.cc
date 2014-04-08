@@ -29,25 +29,27 @@ pp::VarDictionary FaceDetector::DoFaceDetection(pp::VideoFrame& frame) {
     int32_t width = size.width();
     int32_t height = size.height();
     ccv_dense_matrix_t* image = 0;
+    ccv_dense_matrix_t* image_small = 0;
     ccv_read(data, &image, CCV_IO_BGRA_RAW | CCV_IO_GRAY, height, width,  buffer_size / height);
-    //printf("%d %d %d\n",width,height,buffer_size);
     PP_DCHECK(image != 0);
+    ccv_sample_down(image, &image_small, 0, 0, 0);
 
-    ccv_array_t* faces = ccv_bbf_detect_objects(image, &face_cascade, 1, ccv_bbf_default_params);
+    ccv_array_t* faces = ccv_bbf_detect_objects(image_small, &face_cascade, 1, ccv_bbf_default_params);
 
     int i;
     for(i = 0; i <faces->rnum; i++)
     {
         ccv_comp_t* face = (ccv_comp_t*)ccv_array_get(faces, i);
         pp::VarDictionary ppFace;
-        ppFace.Set(pp::Var("x"), face->rect.x);
-	    ppFace.Set(pp::Var("y"), face->rect.y);
-	    ppFace.Set(pp::Var("width"), face->rect.width);
-	    ppFace.Set(pp::Var("height"), face->rect.height);
+        ppFace.Set(pp::Var("x"), face->rect.x * 2);
+	    ppFace.Set(pp::Var("y"), face->rect.y * 2);
+	    ppFace.Set(pp::Var("width"), face->rect.width * 2);
+	    ppFace.Set(pp::Var("height"), face->rect.height * 2);
         ppFaces.Set(i, ppFace);
     }    
 
     ccv_array_free(faces);
+    ccv_matrix_free(image_small);
     ccv_matrix_free(image);
 
     retVal.Set("faces", ppFaces);    
