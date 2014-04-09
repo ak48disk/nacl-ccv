@@ -24,7 +24,7 @@ pp::VarDictionary FaceDetector::DoFaceDetection(pp::VideoFrame& frame) {
     pp::Size size;
     pp::VarDictionary retVal;
     pp::VarArray ppFaces;
-    PP_DCHECK(frame.GetSize(&size));
+    frame.GetSize(&size);
     
     int32_t width = size.width();
     int32_t height = size.height();
